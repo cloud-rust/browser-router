@@ -20,10 +20,7 @@ $R profiles ensure --user-data-dir $UDD Acme; rc=$?
 # setsid: an exited Vivaldi must not linger as a zombie child of this shell, which looks alive
 setsid vivaldi --user-data-dir=$UDD "${VARGS[@]}" about:blank >/dev/null 2>&1 & sleep 8; stop_vivaldi
 $R profiles ensure --user-data-dir $UDD Acme -- "${VARGS[@]}" || fail "ensure Acme"
-sleep 10
-$R profiles ensure --user-data-dir $UDD Other; rc=$?
-[ $rc = 3 ] || fail "ensure while Vivaldi runs: rc $rc, want 3"
-stop_vivaldi
+sleep 10; stop_vivaldi
 $R profiles list --user-data-dir $UDD
 acme_dir=$($R profiles list --user-data-dir $UDD | awk -F'\t' '$1=="Acme"{print $2}')
 [ -n "$acme_dir" ] || fail "Acme missing from Local State after Vivaldi ran"
@@ -73,5 +70,16 @@ landed=$(
 echo "$landed"
 want=$(printf '%s\n' "firefox:dev" "firefox:other" "vivaldi $acme_dir:acme" | sort)
 [ "$(echo "$landed" | sort)" = "$want" ] || fail "links landed wrong; want: $(echo $want)"
+
+echo "--- running Vivaldi"
+# A running Vivaldi blocks new profiles; wait for its lock so the check does not race its start
+setsid vivaldi --user-data-dir=$UDD "${VARGS[@]}" about:blank >/dev/null 2>&1 &
+for _ in $(seq 30); do
+  lock=$(readlink "$UDD/SingletonLock" 2>/dev/null) && kill -0 "${lock##*-}" 2>/dev/null && break  # a stale lock names a dead pid
+  sleep 1
+done
+$R profiles ensure --user-data-dir $UDD Other; rc=$?
+[ $rc = 3 ] || fail "ensure while Vivaldi runs: rc $rc, want 3"
+stop_vivaldi
 
 [ $failed = 0 ] && echo "PASS" || exit 1
