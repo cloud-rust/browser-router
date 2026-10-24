@@ -2,11 +2,20 @@
 // arguments, so this app receives them and passes each one to the bundled Go binary.
 import Cocoa
 
+// Queried by `browser-router status`: which app opens web links. Runs without the app loop.
+if CommandLine.arguments.contains("--print-default") {
+    for scheme in ["http", "https"] {
+        let app = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "\(scheme)://example.com")!)
+        print(scheme, app.flatMap { Bundle(url: $0)?.bundleIdentifier } ?? "none")
+    }
+    exit(0)
+}
+
 final class Delegate: NSObject, NSApplicationDelegate {
     private var quitTimer: Timer?
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        let router = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/router")
+        let router = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/browser-router")
         for url in urls {
             let p = Process()
             p.executableURL = router
