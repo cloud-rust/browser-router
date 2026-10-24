@@ -40,7 +40,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
-	logger := openLog()
+	// Only routing logs: as default browser the router has no terminal; the commands print instead
+	var logger *log.Logger
 	args := os.Args[2:]
 
 	var err error
@@ -64,6 +65,7 @@ func main() {
 	case cmd == "-h" || cmd == "--help" || cmd == "help":
 		fmt.Println(usage)
 	case strings.Contains(cmd, ":") && len(args) == 0:
+		logger = openLog()
 		err = route(logger, cmd)
 	default:
 		err = usageError("unknown command")
@@ -78,7 +80,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(3)
 	default:
-		logger.Printf("error: %v", err)
+		if logger != nil {
+			logger.Printf("error: %v", err)
+		}
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
