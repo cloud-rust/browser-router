@@ -19,8 +19,9 @@ func testConfig(t *testing.T, udd string) Config {
 
 func TestDecide(t *testing.T) {
 	udd := t.TempDir()
+	// With a byte order mark, as PowerShell 5 writes it.
 	if err := os.WriteFile(filepath.Join(udd, "Local State"),
-		[]byte(`{"profile":{"info_cache":{"Profile 1":{"name":"Acme"}}}}`), 0o644); err != nil {
+		[]byte("\xef\xbb\xbf"+`{"profile":{"info_cache":{"Profile 1":{"name":"Acme"}}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	cfg := testConfig(t, udd)

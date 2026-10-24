@@ -61,7 +61,7 @@ func resolveVivaldiProfile(t Target) (string, error) {
 	if st, err := os.Stat(filepath.Join(udd, t.Profile)); err == nil && st.IsDir() {
 		return t.Profile, nil
 	}
-	data, err := os.ReadFile(filepath.Join(udd, "Local State"))
+	data, err := readJSON(filepath.Join(udd, "Local State"))
 	if err != nil {
 		return "", fmt.Errorf("Vivaldi profile %q not found: %v", t.Profile, err)
 	}

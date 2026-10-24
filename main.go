@@ -51,7 +51,9 @@ func main() {
 func route(logger *log.Logger, url string) error {
 	cfg, err := loadConfig()
 	if err != nil {
-		return err
+		// A broken config must not swallow the link: open it in the built-in personal browser.
+		logger.Printf("error: %v; using built-in fallback", err)
+		return launch(defaultConfig().Fallback, url)
 	}
 	d := decide(cfg, url)
 	if d.Note != "" {

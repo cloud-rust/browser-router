@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,7 +69,7 @@ func defaultConfig() Config {
 // loadConfig reads the user's config file, falling back to the built-in example when none exists.
 func loadConfig() (Config, error) {
 	cfg := defaultConfig()
-	data, err := os.ReadFile(configPath())
+	data, err := readJSON(configPath())
 	if err == nil {
 		cfg = Config{}
 		if err := json.Unmarshal(data, &cfg); err != nil {
@@ -78,6 +79,12 @@ func loadConfig() (Config, error) {
 		return Config{}, err
 	}
 	return cfg, compile(&cfg)
+}
+
+// readJSON drops a UTF-8 byte order mark, which Windows tools such as PowerShell 5 write.
+func readJSON(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	return bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), err
 }
 
 func compile(cfg *Config) error {
