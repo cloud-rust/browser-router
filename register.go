@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 const (
@@ -55,10 +56,14 @@ func registerLinux(exe string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
+	// xdg-settings rejects a quoted Exec path, so quote only when the path needs it.
+	if strings.ContainsAny(exe, " \t") {
+		exe = `"` + exe + `"`
+	}
 	entry := fmt.Sprintf(`[Desktop Entry]
 Type=Application
 Name=Browser Router PoC
-Exec="%s" %%u
+Exec=%s %%u
 MimeType=x-scheme-handler/http;x-scheme-handler/https;
 NoDisplay=true
 `, exe)
