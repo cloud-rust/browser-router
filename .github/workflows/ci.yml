@@ -1,0 +1,94 @@
+# Tests and the Linux end-to-end test on every push and pull request; on a tag vX.Y.Z also the
+# release: binaries per platform, on macOS together with the ad-hoc signed app bundle.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Format
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Cross-compile
+        run: |
+          for t in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -o /dev/null .
+          done
+
+  e2e-linux:
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: CGO_ENABLED=0 go build -o build/linux-amd64/browser-router .
+      - run: scripts/e2e.sh
+
+  mac:
+    needs: test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build app
+        run: |
+          v=0.0.0-dev; [ "$GITHUB_REF_TYPE" = tag ] && v=$GITHUB_REF_NAME
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v" -o build/darwin-arm64/browser-router .
+          scripts/mac-app.sh build/darwin-arm64/browser-router "build/Browser Router.app" "$v"
+          codesign --verify --deep --strict "build/Browser Router.app"
+          "build/Browser Router.app/Contents/MacOS/BrowserRouter" --print-default
+          "build/Browser Router.app/Contents/MacOS/browser-router" version
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [e2e-linux, mac]
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build archives
+        run: |
+          v=${GITHUB_REF_NAME}; n=browser-router_${v#v}
+          mkdir -p dist
+          for t in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
+            os=${t%/*}; arch=${t#*/}; dir=build/$os-$arch; exe=browser-router; flags=
+            [ "$os" = windows ] && { exe=$exe.exe; flags=-H=windowsgui; }
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v $flags" -o "$dir/$exe" .
+            cp README.md "$dir/"
+            if [ "$os" = darwin ]; then
+              scripts/mac-app.sh "$dir/$exe" "$dir/Browser Router.app" "$v"
+            fi
+            # tar.gz keeps the executable bits that mise needs; Windows gets a zip.
+            if [ "$os" = windows ]; then
+              (cd "$dir" && zip -qry "$GITHUB_WORKSPACE/dist/${n}_${os}_${arch}.zip" *)
+            else
+              (cd "$dir" && tar -czf "$GITHUB_WORKSPACE/dist/${n}_${os}_${arch}.tar.gz" *)
+            fi
+          done
+          (cd dist && shasum -a 256 * > checksums.txt)
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
