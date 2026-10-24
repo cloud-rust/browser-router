@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 var macApps = map[string]string{"vivaldi": "Vivaldi", "firefox": "Firefox", "safari": "Safari", "chrome": "Google Chrome"}
@@ -118,11 +119,19 @@ func available(t Target) error {
 	return nil
 }
 
-// launch starts the browser and returns without waiting, so the router never blocks the caller.
+// launch starts the browser and returns without waiting for it, so the router never blocks the
+// caller. On macOS it waits for open, which returns once the app has the link and fails for a
+// missing app; only so does a missing app send the link to the fallback instead of losing it.
 func launch(t Target, url string) error {
 	cmd, err := command(t, url)
 	if err != nil {
 		return err
+	}
+	if runtime.GOOS == "darwin" {
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
 	}
 	return cmd.Start()
 }
