@@ -44,7 +44,6 @@ Arbeitsteilung:
 4. Windows: Standardbrowser setzt nur der Nutzer per Klick. Tests brauchen eine angemeldete Desktop-Sitzung.
 5. Konfigurationen können ein UTF-8-BOM haben.
 6. `xdg-settings` lehnt einen Programmpfad in Anführungszeichen ab.
-7. Firefox-Standardprofil auf dem Mac heißt `acme`: Entwicklung sollte ein eigenes Firefox-Profil „Dev“ bekommen.
 
 ## Schritte
 
@@ -52,7 +51,7 @@ Arbeitsteilung:
 ist. Darauf aufbauen.
 
 **1. Repo `browser-router` (aus dem Prototyp)**
-- Prototyp mit Historie übernehmen; GitHub-Repo anlegen erst nach Freigabe des Nutzers (privat oder öffentlich).
+- Prototyp mit Historie übernehmen; GitHub-Repo `cloud-rust/browser-router` **öffentlich** anlegen (vom Nutzer freigegeben).
 - Muster wie bei Finicky als Glob (`*acme*`) zusätzlich zu Regex, damit `browser.match` aus den Mandanten
   unverändert passt.
 - `router profiles ensure <Name>…`: fehlende Vivaldi-Profile anlegen (nur bei geschlossenem Vivaldi),
@@ -60,7 +59,6 @@ ist. Darauf aufbauen.
 - `router register` / `router status`: auf macOS die App nach `~/Applications` legen, bei LaunchServices
   anmelden und den Dialog nur auslösen, wenn der Router noch nicht Standard ist.
 - `router doctor`: Konfiguration, Browser, Profile, Standardbrowser prüfen.
-- Firefox-Profil als Ziel (`-P <Profil>`) unterstützen.
 - CI: Tests, Builds für darwin-arm64 (App als Zip, ad-hoc signiert), linux-amd64/arm64, windows-amd64;
   Release per Tag. Die Linux-Ende-zu-Ende-Prüfung aus `scripts/e2e-linux.sh` in die CI.
 
@@ -71,8 +69,8 @@ ist. Darauf aufbauen.
   (`browser`) und einem festen Teil im Layer Persönlich (Entwicklung → Firefox, Apps, Rückfall Safari).
 - Task ruft `router profiles ensure` für die Profile der Mandanten auf dem Rechner auf. Fehlt ein Layer
   (z. B. Globex auf dem privaten Mac), fehlen auch dessen Profile und Regeln.
-- Umschalten von Finicky auf den Router über einen Schalter im Layer Persönlich; bis dahin bleibt
-  `finicky.js` unverändert. Der tägliche Lauf löst nie einen Dialog aus.
+- Finicky wird abgelöst, sobald der Router auf dem Mac läuft: Task für `finicky.js` und Paket entfernen, Router
+  als Standardbrowser eintragen. Bis dahin bleibt `finicky.js` unverändert. Der tägliche Lauf löst nie einen Dialog aus.
 - Kommentar zum Feld `browser` in `roles/clients/files/client-template.yml` an das Router-Format angleichen.
 
 **3. Tests**
@@ -82,9 +80,11 @@ ist. Darauf aufbauen.
 
 **4. Doku:** README im Router-Repo; ARCHITECTURE §9 (Browser-Teil), `devenv-personal/NEUER-MAC.md`.
 
-## Offene Entscheidungen für den Nutzer
+## Entscheidungen des Nutzers (2026-10-24)
 
-- Router-Repo privat oder öffentlich? Öffentlich vereinfacht die Installation über mise (kein Token).
-- Wann Finicky ablösen: sofort nach Schritt 2 oder nach einer Probezeit auf einem Mac?
-- Persönlicher Browser: Safari wie bisher?
-- WSL: Links aus WSL gehen an den Windows-Standardbrowser; ein Router auf Windows liegt außerhalb von devenv.
+- Router-Repo ist **öffentlich**.
+- **Finicky wird abgelöst**, sobald der eigene Router läuft.
+- Persönlicher Browser (Rückfall) ist **Safari**.
+- **Firefox ohne Profile**: Entwicklung geht an Firefox, wie er ist; keine Firefox-Profilunterstützung nötig.
+- Offen bleibt nur WSL: Links aus WSL gehen an den Windows-Standardbrowser; ein Router auf Windows liegt
+  außerhalb von devenv.
