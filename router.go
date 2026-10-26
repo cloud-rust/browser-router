@@ -1,11 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 )
 
 type Decision struct {
@@ -36,49 +35,42 @@ func decide(cfg Config, url string) Decision {
 	return Decision{Rule: "fallback", Target: cfg.Fallback}
 }
 
-func vivaldiUserDataDir(t Target) string {
-	if t.UserDataDir != "" {
-		return t.UserDataDir
+// decideFor sends a link that comes with a client to that client's target. An unknown client or
+// a profile that cannot be resolved leaves the link to the rules, so nothing is guessed.
+func decideFor(cfg Config, client, url string) Decision {
+	t, ok := cfg.Clients[client]
+	if client == "" || !ok {
+		d := decide(cfg, url)
+		if client != "" {
+			d.Note = strings.TrimPrefix(d.Note+"; ", "; ") + fmt.Sprintf("unknown client %q", client)
+		}
+		return d
 	}
-	home, _ := os.UserHomeDir()
-	switch runtime.GOOS {
-	case "darwin":
-		return filepath.Join(home, "Library", "Application Support", "Vivaldi")
-	case "windows":
-		return filepath.Join(os.Getenv("LOCALAPPDATA"), "Vivaldi", "User Data")
-	default:
-		return filepath.Join(home, ".config", "vivaldi")
+	if t.Browser == "vivaldi" {
+		dir, err := resolveVivaldiProfile(t)
+		if err != nil {
+			d := decide(cfg, url)
+			d.Note = fmt.Sprintf("client %q: %v", client, err)
+			return d
+		}
+		t.Profile = dir
 	}
+	return Decision{Rule: "client " + client, Target: t}
 }
 
 // resolveVivaldiProfile maps a profile display name ("Acme") to its directory ("Profile 1") via
 // Local State; a directory name is accepted as is. Unknown names are an error, never a guess.
 func resolveVivaldiProfile(t Target) (string, error) {
-	udd := vivaldiUserDataDir(t)
-	if t.Profile == "" {
-		return "", fmt.Errorf("no Vivaldi profile configured")
-	}
+	udd := vivaldiUserDataDir(t.UserDataDir)
 	if st, err := os.Stat(filepath.Join(udd, t.Profile)); err == nil && st.IsDir() {
 		return t.Profile, nil
 	}
-	data, err := readJSON(filepath.Join(udd, "Local State"))
+	state, err := readLocalState(udd)
 	if err != nil {
 		return "", fmt.Errorf("Vivaldi profile %q not found: %v", t.Profile, err)
 	}
-	var state struct {
-		Profile struct {
-			InfoCache map[string]struct {
-				Name string `json:"name"`
-			} `json:"info_cache"`
-		} `json:"profile"`
-	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return "", fmt.Errorf("parse Local State: %w", err)
-	}
-	for dir, info := range state.Profile.InfoCache {
-		if info.Name == t.Profile {
-			return dir, nil
-		}
+	if dir := state.dirOf(t.Profile); dir != "" {
+		return dir, nil
 	}
 	return "", fmt.Errorf("Vivaldi profile %q not found", t.Profile)
 }

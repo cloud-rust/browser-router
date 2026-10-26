@@ -10,7 +10,7 @@ while ($true) { $c = $l.AcceptTcpClient(); $s = $c.GetStream(); $buf = New-Objec
 '@ | Set-Content $srv
 $server = Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $srv -WindowStyle Hidden -PassThru
 Start-Sleep 2
-$cmdline = (Get-ItemProperty "HKCU:\Software\Classes\BrowserRouterPoC.URL\shell\open\command").'(default)'
+$cmdline = (Get-ItemProperty "HKCU:\Software\Classes\BrowserRouter.URL\shell\open\command").'(default)'
 $exe = ($cmdline -split '"')[1]
 "mode: $Mode"
 "https default: " + (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice" -ErrorAction SilentlyContinue).ProgId
@@ -22,7 +22,7 @@ Start-Sleep 20
 Get-Process firefox, vivaldi -ErrorAction SilentlyContinue | ForEach-Object { [void]$_.CloseMainWindow() }; Start-Sleep 8
 Get-Process firefox, vivaldi -ErrorAction SilentlyContinue | Stop-Process -Force
 Stop-Process -Id $server.Id -Force
-"--- router.log"; Get-Content "$env:APPDATA\browser-router-poc\router.log" | Select-String "probe=$T"
+"--- router.log"; Get-Content "$env:APPDATA\browser-router\router.log" -Tail 6  # hosts only, never full links
 "--- landed"
 function Probes($file, $label) {
   $found = foreach ($f in @($file, "$file-wal")) { if (Test-Path $f) {
