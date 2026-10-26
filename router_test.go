@@ -119,3 +119,42 @@ func TestHostOf(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestDecideForClient(t *testing.T) {
+	udd := t.TempDir()
+	writeLocalState(t, udd, `{"profile":{"info_cache":{"Profile 1":{"name":"Acme"},"Profile 2":{"name":"Globex"}}}}`)
+	cfg := testConfig(t, udd)
+	cfg.Clients = map[string]Target{
+		"acme":   {Browser: "vivaldi", Profile: "Acme", UserDataDir: udd},
+		"globex": {Browser: "vivaldi", Profile: "Globex", UserDataDir: udd},
+		"gone":   {Browser: "vivaldi", Profile: "Gone", UserDataDir: udd},
+	}
+	if err := compile(&cfg); err != nil {
+		t.Fatal(err)
+	}
+	// The Azure CLI sign-in carries no client hint; the client of the call decides.
+	login := "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?client_id=04b07795"
+	cases := []struct{ client, url, rule, profile string }{
+		{"globex", login, "client globex", "Profile 2"},
+		{"acme", login, "client acme", "Profile 1"},
+		{"acme", "http://localhost:3000/", "client acme", "Profile 1"}, // the client wins over the rules
+		{"", "https://acme.sharepoint.com/", "acme", "Profile 1"},
+		{"unknown", "https://example.org/", "fallback", ""}, // unknown client: the rules, never a guess
+		{"gone", "https://acme.sharepoint.com/", "acme", "Profile 1"},
+	}
+	for _, c := range cases {
+		d := decideFor(cfg, c.client, c.url)
+		if d.Rule != c.rule || d.Target.Profile != c.profile {
+			t.Errorf("%s %s: got %s/%s, want %s/%s", c.client, c.url, d.Rule, d.Target.Profile, c.rule, c.profile)
+		}
+		if (c.client == "unknown" || c.client == "gone") && d.Note == "" {
+			t.Errorf("%s: no note", c.client)
+		}
+	}
+}
+
+func TestClientTargetsAreChecked(t *testing.T) {
+	if _, err := parseConfig([]byte(`{"rules": [], "clients": {"acme": {"browser": "vivaldi"}}}`)); err == nil {
+		t.Error("client without Vivaldi profile accepted")
+	}
+}

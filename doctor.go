@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"sort"
 )
 
 func status() error {
@@ -86,6 +87,18 @@ func doctor() error {
 		}
 	}
 
+	for _, key := range sortedKeys(cfg.Clients) {
+		t := cfg.Clients[key]
+		if t.Browser != "vivaldi" {
+			continue
+		}
+		if dir, err := resolveVivaldiProfile(t); err != nil {
+			report(false, "client %q: %v (browser-router profiles ensure %q)", key, err, t.Profile)
+		} else {
+			report(true, "client %q: Vivaldi profile %s (%s)", key, t.Profile, dir)
+		}
+	}
+
 	if runtime.GOOS == "darwin" {
 		state := appState()
 		report(state == "current", "app %s: %s", installedApp(), state)
@@ -103,4 +116,13 @@ func doctor() error {
 		return fmt.Errorf("%d problem(s)", problems)
 	}
 	return nil
+}
+
+func sortedKeys(m map[string]Target) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

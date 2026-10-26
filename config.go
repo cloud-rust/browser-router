@@ -32,8 +32,11 @@ type Rule struct {
 }
 
 type Config struct {
-	Rules    []Rule `json:"rules"`
-	Fallback Target `json:"fallback"`
+	Rules []Rule `json:"rules"`
+	// Clients names the target per client for links that come with a client, such as the sign-in
+	// of a command line tool called in a client's folder (--client or BROWSER_ROUTER_CLIENT).
+	Clients  map[string]Target `json:"clients,omitempty"`
+	Fallback Target            `json:"fallback"`
 }
 
 var browsers = map[string]bool{"vivaldi": true, "firefox": true, "safari": true, "chrome": true, "app": true}
@@ -122,6 +125,11 @@ func compile(cfg *Config) error {
 	}
 	if cfg.Fallback.Browser == "vivaldi" {
 		return fmt.Errorf("fallback: vivaldi needs a profile, which may be missing; use another browser")
+	}
+	for key, t := range cfg.Clients {
+		if err := checkTarget(t); err != nil {
+			return fmt.Errorf("client %q: %w", key, err)
+		}
 	}
 	for i := range cfg.Rules {
 		r := &cfg.Rules[i]

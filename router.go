@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Decision struct {
@@ -32,6 +33,29 @@ func decide(cfg Config, url string) Decision {
 		}
 	}
 	return Decision{Rule: "fallback", Target: cfg.Fallback}
+}
+
+// decideFor sends a link that comes with a client to that client's target. An unknown client or
+// a profile that cannot be resolved leaves the link to the rules, so nothing is guessed.
+func decideFor(cfg Config, client, url string) Decision {
+	t, ok := cfg.Clients[client]
+	if client == "" || !ok {
+		d := decide(cfg, url)
+		if client != "" {
+			d.Note = strings.TrimPrefix(d.Note+"; ", "; ") + fmt.Sprintf("unknown client %q", client)
+		}
+		return d
+	}
+	if t.Browser == "vivaldi" {
+		dir, err := resolveVivaldiProfile(t)
+		if err != nil {
+			d := decide(cfg, url)
+			d.Note = fmt.Sprintf("client %q: %v", client, err)
+			return d
+		}
+		t.Profile = dir
+	}
+	return Decision{Rule: "client " + client, Target: t}
 }
 
 // resolveVivaldiProfile maps a profile display name ("Acme") to its directory ("Profile 1") via

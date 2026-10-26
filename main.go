@@ -16,8 +16,10 @@ import (
 var version = "dev" // set by the release build
 
 const usage = `usage:
-  browser-router <url>                  route a link (what the OS calls as default browser)
-  browser-router test <url>             print where a link would go, without opening it
+  browser-router [--client <key>] <url> route a link (what the OS calls as default browser);
+                                        with a client: that client's target from the config
+  browser-router [--client <key>] test <url>
+                                        print where a link would go, without opening it
   browser-router register [--no-prompt] install for the OS and ask to become the default browser;
                                         --no-prompt only installs and reports, it never asks
   browser-router unregister [<browser>] remove the registration (macOS: restore <bundle id>, default Safari)
@@ -28,6 +30,9 @@ const usage = `usage:
                                         create missing Vivaldi profiles (Vivaldi must be closed)
   browser-router config path|init|check config file location, write the example, validate
   browser-router version
+
+BROWSER_ROUTER_CLIENT=<key> does what --client does, for tools that take a browser command
+without arguments (BROWSER).
 
 exit codes: 0 ok, 1 error, 2 usage, 3 not possible now (profiles ensure: Vivaldi runs)`
 
@@ -42,12 +47,20 @@ func main() {
 	}
 	// Only routing logs: as default browser the router has no terminal; the commands print instead
 	var logger *log.Logger
-	args := os.Args[2:]
+	client, args := os.Getenv("BROWSER_ROUTER_CLIENT"), os.Args[1:]
+	if len(args) >= 2 && args[0] == "--client" {
+		client, args = args[1], args[2:]
+	}
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, usage)
+		os.Exit(2)
+	}
+	cmd, args := args[0], args[1:]
 
 	var err error
-	switch cmd := os.Args[1]; {
+	switch {
 	case cmd == "test" && len(args) == 1:
-		err = test(args[0])
+		err = test(client, args[0])
 	case cmd == "register" && (len(args) == 0 || len(args) == 1 && args[0] == "--no-prompt"):
 		err = register(len(args) == 0)
 	case cmd == "unregister" && len(args) <= 1:
@@ -66,7 +79,7 @@ func main() {
 		fmt.Println(usage)
 	case strings.Contains(cmd, ":") && len(args) == 0:
 		logger = openLog()
-		err = route(logger, cmd)
+		err = route(logger, client, cmd)
 	default:
 		err = usageError("unknown command")
 	}
@@ -88,14 +101,14 @@ func main() {
 	}
 }
 
-func route(logger *log.Logger, link string) error {
+func route(logger *log.Logger, client, link string) error {
 	cfg, _, err := loadConfig()
 	if err != nil {
 		// A broken config must not swallow the link: open it in the built-in personal browser.
 		logger.Printf("error: %v; using built-in fallback", err)
 		return launch(builtinFallback(), link)
 	}
-	d := decide(cfg, link)
+	d := decideFor(cfg, client, link)
 	if d.Note != "" {
 		logger.Printf("warning: %s", d.Note)
 	}
@@ -120,7 +133,7 @@ func hostOf(link string) string {
 	return u.Scheme + "://" + u.Host
 }
 
-func test(link string) error {
+func test(client, link string) error {
 	cfg, found, err := loadConfig()
 	if err != nil {
 		return err
@@ -128,7 +141,7 @@ func test(link string) error {
 	if !found {
 		fmt.Printf("note: no config at %s\n", configPath())
 	}
-	d := decide(cfg, link)
+	d := decideFor(cfg, client, link)
 	fmt.Printf("rule: %s\nbrowser: %s\nprofile: %s\n", d.Rule, d.Target.Browser, d.Target.Profile)
 	if d.Note != "" {
 		fmt.Printf("note: %s\n", d.Note)

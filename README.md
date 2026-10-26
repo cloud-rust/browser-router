@@ -68,6 +68,27 @@ Regeln, die nie raten:
 - `router.log` neben der Konfiguration hält je Link Regel, Ziel und nur den Host, nie die ganze URL (Links können
   Tokens enthalten).
 
+## Anmeldungen von Kommandozeilen-Werkzeugen
+
+Die Anmeldeseite von `az login` oder `gh auth login --web` verrät nicht, für welchen Mandanten man sich anmeldet. Wer
+es weiß (z. B. weil der Aufruf im Ordner des Mandanten passiert), gibt den Mandanten mit:
+
+```json
+"clients": {
+  "acme": {"browser": "vivaldi", "profile": "Acme"}
+}
+```
+
+```bash
+browser-router --client acme https://login.microsoftonline.com/…
+BROWSER_ROUTER_CLIENT=acme browser-router https://…   # dasselbe als Umgebungsvariable
+```
+
+Ein Link mit bekanntem Mandanten geht an dessen Ziel, vor allen Regeln. Ein unbekannter Mandant oder ein fehlendes
+Profil lässt den Link wie gewohnt durch die Regeln laufen. Werkzeuge wie `az` und `gh` öffnen Links über `BROWSER`,
+das nur einen Programmpfad ohne Argumente nimmt; daher die Umgebungsvariable. Ein kleines Skript als `BROWSER`, das
+`BROWSER_ROUTER_CLIENT` setzt und den Router aufruft, reicht.
+
 ## Vivaldi-Profile
 
 ```bash
