@@ -213,3 +213,18 @@ func TestURLErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestActivation(t *testing.T) {
+	for _, c := range []struct {
+		t    Target
+		want string
+	}{
+		{Target{Browser: "vivaldi", Profile: "Default"}, "activate: Vivaldi"},
+		{Target{Browser: "safari"}, "activate: Safari"},
+		{Target{Browser: "app", App: "Arc"}, "activate: Arc"},
+	} {
+		if got := activation(c.t); got != c.want {
+			t.Errorf("activation(%+v) = %q, want %q", c.t, got, c.want)
+		}
+	}
+}
