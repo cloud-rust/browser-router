@@ -43,7 +43,8 @@ Die Umgebungsvariable `BROWSER_ROUTER_CONFIG` setzt einen anderen Pfad.
     {"name": "development",
      "regex": ["^https?://(localhost|127\\.0\\.0\\.1|\\[::1\\]|[^/?#]+\\.localhost)(:\\d+)?([/?#]|$)"],
      "target": {"browser": "firefox"}},
-    {"name": "acme", "match": ["*acme*", "*login.microsoftonline.com/<tenant-id>/*"],
+    {"name": "acme", "urls": ["acme.atlassian.net", "*.acme.com", "github.com/acme"],
+     "match": ["*login.microsoftonline.com/<tenant-id>/*"],
      "target": {"browser": "vivaldi", "profile": "Acme"}},
     {"name": "spotify", "match": ["*spotify.com*"], "target": {"browser": "app", "app": "Spotify"}}
   ],
@@ -51,7 +52,14 @@ Die Umgebungsvariable `BROWSER_ROUTER_CONFIG` setzt einen anderen Pfad.
 }
 ```
 
-- Die **erste passende Regel** gewinnt; passt keine, geht der Link an `fallback`.
+- Zuerst zählen die `urls` aller Regeln: der **genaueste Eintrag** gewinnt, egal in welcher Regel er steht. Passt
+  keiner, gewinnt die **erste Regel**, deren `match` oder `regex` passt; passt auch das nicht, geht der Link an
+  `fallback`.
+- `urls`: Seiten einer Regel als Host, wahlweise mit Pfadanfang: `acme.atlassian.net`, `github.com/acme`, und mit
+  `*.` davor der Host samt allen Subdomains (`*.acme.com`). Geprüft werden nur Host und Pfad, nie Query oder Titel
+  einer Seite: Eine Wiki-Seite „Globex-Workshop“ auf `acme.atlassian.net` bleibt bei Acme. Ein Pfadanfang endet an
+  einem `/` (`github.com/acme` deckt nicht `github.com/acme-corp`). Genauer heißt: ein Host ohne `*.` vor einem mit,
+  ein längerer Host vor einem kürzeren, dann der längere Pfad. Derselbe Eintrag in zwei Regeln ist ein Fehler.
 - `match`: Muster wie bei Finicky. `*` steht für beliebig viele Zeichen, sonst gilt jedes Zeichen wörtlich, Groß-
   und Kleinschreibung zählen nicht. Das Muster deckt die ganze URL ab. Ohne `://` im Muster darf ein Schema davor
   stehen: `localhost*` passt auf `http://localhost:3000/`.

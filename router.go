@@ -13,26 +13,33 @@ type Decision struct {
 	Note   string
 }
 
-// decide picks the first matching rule. A rule whose Vivaldi profile cannot be resolved falls back
-// instead of opening Vivaldi without a profile, which would silently use the last active one.
+// decide sends a link to the rule with the most specific urls entry, else to the first rule whose
+// match or regex fits. A rule whose Vivaldi profile cannot be resolved falls back instead of
+// opening Vivaldi without a profile, which would silently use the last active one.
 func decide(cfg Config, url string) Decision {
+	if i := bestURLRule(cfg, url); i >= 0 {
+		return use(cfg, cfg.Rules[i])
+	}
 	for _, r := range cfg.Rules {
 		for _, re := range r.compiled {
-			if !re.MatchString(url) {
-				continue
+			if re.MatchString(url) {
+				return use(cfg, r)
 			}
-			t := r.Target
-			if t.Browser == "vivaldi" {
-				dir, err := resolveVivaldiProfile(t)
-				if err != nil {
-					return Decision{Rule: "fallback", Target: cfg.Fallback, Note: fmt.Sprintf("rule %q: %v", r.Name, err)}
-				}
-				t.Profile = dir
-			}
-			return Decision{Rule: r.Name, Target: t}
 		}
 	}
 	return Decision{Rule: "fallback", Target: cfg.Fallback}
+}
+
+func use(cfg Config, r Rule) Decision {
+	t := r.Target
+	if t.Browser == "vivaldi" {
+		dir, err := resolveVivaldiProfile(t)
+		if err != nil {
+			return Decision{Rule: "fallback", Target: cfg.Fallback, Note: fmt.Sprintf("rule %q: %v", r.Name, err)}
+		}
+		t.Profile = dir
+	}
+	return Decision{Rule: r.Name, Target: t}
 }
 
 // decideFor sends a link that comes with a client to that client's target. An unknown client or
