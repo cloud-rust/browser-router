@@ -158,3 +158,58 @@ func TestClientTargetsAreChecked(t *testing.T) {
 		t.Error("client without Vivaldi profile accepted")
 	}
 }
+
+func TestURLs(t *testing.T) {
+	udd := t.TempDir()
+	writeLocalState(t, udd, `{"profile":{"info_cache":{"Profile 1":{"name":"Acme"},"Profile 2":{"name":"Globex"},"Profile 3":{"name":"Globex Admin"}}}}`)
+	cfg, err := parseConfig([]byte(strings.ReplaceAll(`{
+  "rules": [
+    {"name": "acme", "match": ["*acme*"], "urls": ["github.com/acme", "acme.example"],
+     "target": {"browser": "vivaldi", "profile": "Acme", "user_data_dir": "UDD"}},
+    {"name": "globex admin", "urls": ["https://admin.globex.atlassian.net/"],
+     "target": {"browser": "vivaldi", "profile": "Globex Admin", "user_data_dir": "UDD"}},
+    {"name": "globex", "urls": ["*.globex.atlassian.net", "*.globex.com", "github.com/Globex"],
+     "target": {"browser": "vivaldi", "profile": "Globex", "user_data_dir": "UDD"}}
+  ],
+  "fallback": {"browser": "safari"}
+}`, "UDD", filepath.ToSlash(udd))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ url, rule string }{
+		// A client's name in a page of another client's wiki no longer moves the link.
+		{"https://globex.atlassian.net/wiki/spaces/X/pages/1/Acme+Workshop", "globex"},
+		{"https://admin.globex.atlassian.net/x", "globex admin"}, // the exact host beats *.
+		{"https://www.globex.com/", "globex"},
+		{"https://globex.com", "globex"},
+		{"https://notglobex.com/", "fallback"},
+		{"https://github.com/acme/repo/issues?q=globex", "acme"},
+		{"https://github.com/ACME", "acme"},
+		{"https://github.com/acme-corp/x", "acme"}, // no urls entry fits: the match *acme* still does
+		{"https://github.com/globex/x", "globex"},
+		{"https://github.com/other/acme", "acme"}, // via match
+		{"https://github.com/other/x", "fallback"},
+		{"https://ACME.example:8443/x", "acme"},
+		{"ftp://globex.com/", "fallback"},
+	}
+	for _, c := range cases {
+		if d := decide(cfg, c.url); d.Rule != c.rule {
+			t.Errorf("%s: got %s, want %s", c.url, d.Rule, c.rule)
+		}
+	}
+}
+
+func TestURLErrors(t *testing.T) {
+	for _, body := range []string{
+		`{"rules": [{"name": "x", "urls": ["*acme*"], "target": {"browser": "firefox"}}]}`,
+		`{"rules": [{"name": "x", "urls": ["acme.com:8080"], "target": {"browser": "firefox"}}]}`,
+		`{"rules": [{"name": "x", "urls": ["/path"], "target": {"browser": "firefox"}}]}`,
+		`{"rules": [{"name": "x", "urls": ["a.com/x*"], "target": {"browser": "firefox"}}]}`,
+		`{"rules": [{"name": "x", "urls": ["a.com"], "target": {"browser": "firefox"}},
+		            {"name": "y", "urls": ["A.com/"], "target": {"browser": "safari"}}]}`,
+	} {
+		if _, err := parseConfig([]byte(body)); err == nil {
+			t.Errorf("no error for %s", body)
+		}
+	}
+}

@@ -26,9 +26,11 @@ type Rule struct {
 	Name   string   `json:"name"`
 	Match  []string `json:"match,omitempty"` // globs as in Finicky: * is the only wildcard, case-insensitive
 	Regex  []string `json:"regex,omitempty"` // regular expressions against the full URL, case-insensitive
+	URLs   []string `json:"urls,omitempty"`  // host and path prefix (urls.go), before all match/regex; most specific wins
 	Target Target   `json:"target"`
 
 	compiled []*regexp.Regexp
+	sites    []siteURL
 }
 
 type Config struct {
@@ -131,10 +133,23 @@ func compile(cfg *Config) error {
 			return fmt.Errorf("client %q: %w", key, err)
 		}
 	}
+	owner := map[string]string{} // an entry in two rules would make the result depend on their order
 	for i := range cfg.Rules {
 		r := &cfg.Rules[i]
 		if err := checkTarget(r.Target); err != nil {
 			return fmt.Errorf("rule %q: %w", r.Name, err)
+		}
+		r.sites = nil
+		for _, raw := range r.URLs {
+			u, err := parseSiteURL(raw)
+			if err != nil {
+				return fmt.Errorf("rule %q: %w", r.Name, err)
+			}
+			if other, ok := owner[u.String()]; ok && other != r.Name {
+				return fmt.Errorf("rule %q: url %q is also in rule %q", r.Name, u, other)
+			}
+			owner[u.String()] = r.Name
+			r.sites = append(r.sites, u)
 		}
 		r.compiled = nil
 		for _, g := range r.Match {
@@ -147,8 +162,8 @@ func compile(cfg *Config) error {
 			}
 			r.compiled = append(r.compiled, re)
 		}
-		if len(r.compiled) == 0 {
-			return fmt.Errorf("rule %q: no match or regex", r.Name)
+		if len(r.compiled) == 0 && len(r.sites) == 0 {
+			return fmt.Errorf("rule %q: no urls, match or regex", r.Name)
 		}
 	}
 	return nil
