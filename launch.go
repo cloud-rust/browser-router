@@ -28,10 +28,7 @@ func command(t Target, url string) (*exec.Cmd, error) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		app := macApps[t.Browser]
-		if t.Browser == "app" {
-			app = t.App
-		}
+		app := macApp(t)
 		if app == "" {
 			break
 		}
@@ -50,6 +47,21 @@ func command(t Target, url string) (*exec.Cmd, error) {
 		}
 	}
 	return nil, fmt.Errorf("browser %q is not available on %s", t.Browser, runtime.GOOS)
+}
+
+// macApp is the app name open -a takes for t on macOS; empty for an unknown browser.
+func macApp(t Target) string {
+	if t.Browser == "app" {
+		return t.App
+	}
+	return macApps[t.Browser]
+}
+
+// activation is the line that tells the app shell which app to bring to the front (mac/main.swift).
+// The shell runs the router without being active, so the app that got the link stays behind unless
+// the shell hands its activation over; open -n for Vivaldi loses it in any case.
+func activation(t Target) string {
+	return "activate: " + macApp(t)
 }
 
 // executable finds the program for t on Linux and Windows; empty when it is not installed.
@@ -104,10 +116,7 @@ func firstExisting(paths ...string) string {
 // available reports whether the browser or app of t is installed, without opening it.
 func available(t Target) error {
 	if runtime.GOOS == "darwin" {
-		app := macApps[t.Browser]
-		if t.Browser == "app" {
-			app = t.App
-		}
+		app := macApp(t)
 		if app == "" || exec.Command("open", "-Ra", app).Run() != nil {
 			return fmt.Errorf("app %q not found", app)
 		}
@@ -130,6 +139,9 @@ func launch(t Target, url string) error {
 	if runtime.GOOS == "darwin" {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
+		}
+		if os.Getenv(shellEnv) != "" {
+			fmt.Println(activation(t))
 		}
 		return nil
 	}

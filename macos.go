@@ -20,6 +20,7 @@ const (
 	bundleID   = "io.github.cloud-rust.browser-router"
 	appBundle  = "Browser Router.app"
 	appShell   = "BrowserRouter"
+	shellEnv   = "BROWSER_ROUTER_SHELL" // set by the app shell, which reads the activation line
 	lsregister = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 )
 
