@@ -1,0 +1,20 @@
+# Neuer Stand eines Pull Requests: Cockpit live startet den Neulauf, wenn die Aufgabe in der Abnahme
+# steht (Befund 136). Der gemeinsame Workflow liegt in plattform; er meldet sich mit einem OIDC-Token
+# von GitHub an (Befund 160) und braucht nur die Variable COCKPIT_URL.
+name: Cockpit melden
+
+on:
+  pull_request:
+    types: [synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  melden:
+    permissions:
+      contents: read
+      id-token: write
+    uses: cloud-rust/plattform/.github/workflows/cockpit-melden.yml@main
+    with:
+      cockpit_url: ${{ vars.COCKPIT_URL }}
