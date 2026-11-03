@@ -1,6 +1,6 @@
 # Neuer Stand eines Pull Requests: Cockpit live startet den Neulauf, wenn die Aufgabe in der Abnahme
 # steht (Befund 136). Der gemeinsame Workflow liegt in plattform; er meldet sich mit einem OIDC-Token
-# von GitHub an (Befund 160) und braucht nur die Variable COCKPIT_URL.
+# von GitHub an (Befund 160) und kennt die Adresse von Cockpit live selbst (A-059).
 name: Cockpit melden
 
 on:
@@ -16,5 +16,3 @@ jobs:
       contents: read
       id-token: write
     uses: cloud-rust/plattform/.github/workflows/cockpit-melden.yml@main
-    with:
-      cockpit_url: ${{ vars.COCKPIT_URL }}
