@@ -15,4 +15,4 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: cloud-rust/plattform/.github/workflows/cockpit-melden.yml@main
+    uses: cloud-rust/werkzeuge/.github/workflows/cockpit-melden.yml@main
