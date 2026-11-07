@@ -1,5 +1,5 @@
 # Neuer Stand eines Pull Requests: Cockpit live startet den Neulauf, wenn die Aufgabe in der Abnahme
-# steht (Befund 136). Der gemeinsame Workflow liegt in plattform; er meldet sich mit einem OIDC-Token
+# steht (Befund 136). Der gemeinsame Workflow liegt in werkzeuge-oeffentlich; er meldet sich mit einem OIDC-Token
 # von GitHub an (Befund 160) und kennt die Adresse von Cockpit live selbst (A-059).
 name: Cockpit melden
 
@@ -15,4 +15,4 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: cloud-rust/werkzeuge/.github/workflows/cockpit-melden.yml@main
+    uses: cloud-rust/werkzeuge-oeffentlich/.github/workflows/cockpit-melden.yml@main
