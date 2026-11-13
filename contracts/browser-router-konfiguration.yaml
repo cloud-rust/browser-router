@@ -1,0 +1,21 @@
+# Vertrag, den der Browser-Router anbietet (project-layout.md, „Wissen“): seine Konfigurationsdatei
+# und die Befehle, mit denen ein Einrichtungswerkzeug ihn ohne Rückfrage pflegt. Felder im Code:
+# config.go (Config, Rule, Target); Beschreibung im README, Abschnitte Konfiguration und Befehle.
+vertrag: browser-router-konfiguration
+version: 1
+art: datei
+beschreibung: Eine JSON-Datei mit Regeln, Mandanten und Rückfall; der Router liest sie bei jedem Link. browser-router config path nennt den Ort je Betriebssystem, BROWSER_ROUTER_CONFIG setzt einen anderen. Exit-Codes aller Befehle 0 in Ordnung, 1 Fehler, 2 falscher Aufruf, 3 jetzt nicht möglich.
+endpunkt: config.json (browser-router config path)
+themen:
+  - name: Konfiguration
+    pflicht: [rules, fallback]
+    frei: [clients]
+    werte:
+      rules: "je Regel name und target, dazu urls, match oder regex"
+      target: "browser (vivaldi, firefox, safari, chrome, app), frei profile, app, args"
+  - name: Pflege ohne Rückfrage
+    endpunkt: browser-router config check | profiles ensure [--dry-run] <Profil> … | register --no-prompt
+    antwort: "profiles ensure meldet created: und missing:, Exit-Code 3 bei laufendem Vivaldi; register --no-prompt fragt nie"
+  - name: Mandant eines Aufrufs
+    endpunkt: BROWSER_ROUTER_CLIENT=<mandant> browser-router <url>
+    antwort: "ein bekannter Mandant geht vor allen Regeln an sein Ziel, ein unbekannter durch die Regeln"
