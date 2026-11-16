@@ -1,0 +1,18 @@
+# Begriffe des Browser-Routers mit ihrem Namen im Code (project-layout.md, „Wissen“).
+# Ausführlich: README.md, Abschnitt Konfiguration.
+begriffe:
+  - begriff: Regel
+    bedeutung: Bestimmt für passende Links das Ziel, über Seiten (urls), Muster (match) oder reguläre Ausdrücke (regex)
+    code: Rule              # rules in config.json
+  - begriff: Ziel
+    bedeutung: Browser, Vivaldi-Profil oder App, an die ein Link geht
+    code: Target            # target
+  - begriff: Rückfall
+    bedeutung: Ziel für jeden Link, auf den keine Regel passt oder dessen Ziel fehlt
+    code: Fallback          # fallback
+  - begriff: Mandant
+    bedeutung: Kunde oder Organisation mit eigenem Ordner, Git-Identität, Konten und Browser-Profil
+    code: client            # --client, BROWSER_ROUTER_CLIENT, clients in config.json
+  - begriff: Vivaldi-Profil
+    bedeutung: Eigenes Vivaldi-Profil je Mandant, damit dort nur dessen Anmeldungen liegen
+    code: profile           # target.profile, browser-router profiles
