@@ -13,10 +13,11 @@ type Decision struct {
 	Note   string
 }
 
-// decide sends a link to the rule with the most specific urls entry, else to the first rule whose
-// match or regex fits. A rule whose Vivaldi profile cannot be resolved falls back instead of
+// decide looks through Safe Links wrappers (unwrapRedirect), then sends the link to the rule with
+// the most specific urls entry, else to the first rule whose match or regex fits. A rule whose Vivaldi profile cannot be resolved falls back instead of
 // opening Vivaldi without a profile, which would silently use the last active one.
 func decide(cfg Config, url string) Decision {
+	url = unwrapRedirect(url)
 	if i := bestURLRule(cfg, url); i >= 0 {
 		return use(cfg, cfg.Rules[i])
 	}
