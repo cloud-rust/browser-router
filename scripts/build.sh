@@ -8,13 +8,13 @@ VERSION=${VERSION:-dev}
 DOCKER=(docker ${DOCKER_CONTEXT:+--context "$DOCKER_CONTEXT"})
 
 "${DOCKER[@]}" run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=0 -e VERSION="$VERSION" "$GO_IMAGE" sh -euc '
-  test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-  go vet ./...
-  go test ./...
+  test -z "$(gofmt -l router)" || { gofmt -l router; exit 1; }
+  go -C router vet ./...
+  go -C router test ./...
   for t in darwin/arm64 linux/arm64 linux/amd64 windows/amd64; do
     os=${t%/*}; arch=${t#*/}; out=build/$os-$arch/browser-router; flags=
     [ "$os" = windows ] && { out=$out.exe; flags=-H=windowsgui; }
-    GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$VERSION $flags" -o "$out" .
+    GOOS=$os GOARCH=$arch go build -C router -trimpath -ldflags "-s -w -X main.version=$VERSION $flags" -o "/src/$out" .
   done'
 
 if [ "$(uname)" = Darwin ]; then
