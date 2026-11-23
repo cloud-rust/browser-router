@@ -55,6 +55,12 @@ Die Umgebungsvariable `BROWSER_ROUTER_CONFIG` setzt einen anderen Pfad.
 - Zuerst zählen die `urls` aller Regeln: der **genaueste Eintrag** gewinnt, egal in welcher Regel er steht. Passt
   keiner, gewinnt die **erste Regel**, deren `match` oder `regex` passt; passt auch das nicht, geht der Link an
   `fallback`.
+- Weiterleitungen von Microsoft Safe Links (Teams über `teams.public.onecdn.static.microsoft` und
+  `statics.teams.cdn.office.net`, Outlook über `*.safelinks.protection.outlook.com`) packt der Router vorher aus:
+  Die Regeln sehen den Link aus dem Parameter `url`, auch verschachtelt. Geöffnet wird die Weiterleitung selbst,
+  damit die Prüfung von Safe Links beim Klick bleibt. Sonst sähe `*acme*` „acme“ im Namen eines Repos unter
+  `github.com/globex` und schickte den Link zu Acme. `browser-router test` zeigt den ausgepackten Link als
+  `unwrapped:`, `router.log` den Host mit `(via …)`.
 - `urls`: Seiten einer Regel als Host, wahlweise mit Pfadanfang: `acme.atlassian.net`, `github.com/acme`, und mit
   `*.` davor der Host samt allen Subdomains (`*.acme.com`). Geprüft werden nur Host und Pfad, nie Query oder Titel
   einer Seite: Eine Wiki-Seite „Globex-Workshop“ auf `acme.atlassian.net` bleibt bei Acme. Ein Pfadanfang endet an
