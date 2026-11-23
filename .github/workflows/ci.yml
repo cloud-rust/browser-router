@@ -18,15 +18,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: router/go.mod
       - name: Format
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-      - run: go vet ./...
-      - run: go test ./...
+        run: test -z "$(gofmt -l router)" || { gofmt -l router; exit 1; }
+      - run: go -C router vet ./...
+      - run: go -C router test ./...
       - name: Cross-compile
         run: |
           for t in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
-            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -o /dev/null .
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -C router -o /dev/null .
           done
 
   e2e-linux:
@@ -36,8 +36,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-      - run: CGO_ENABLED=0 go build -o build/linux-amd64/browser-router .
+          go-version-file: router/go.mod
+      - run: CGO_ENABLED=0 go build -C router -o "$GITHUB_WORKSPACE/build/linux-amd64/browser-router" .
       - run: scripts/e2e.sh
 
   mac:
@@ -47,11 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: router/go.mod
       - name: Build app
         run: |
           v=0.0.0-dev; [ "$GITHUB_REF_TYPE" = tag ] && v=$GITHUB_REF_NAME
-          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v" -o build/darwin-arm64/browser-router .
+          CGO_ENABLED=0 go build -C router -trimpath -ldflags "-s -w -X main.version=$v" -o "$GITHUB_WORKSPACE/build/darwin-arm64/browser-router" .
           scripts/mac-app.sh build/darwin-arm64/browser-router "build/Browser Router.app" "$v"
           codesign --verify --deep --strict "build/Browser Router.app"
           "build/Browser Router.app/Contents/MacOS/BrowserRouter" --print-default
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: router/go.mod
       - name: Build archives
         run: |
           v=${GITHUB_REF_NAME}; n=browser-router_${v#v}
@@ -75,7 +75,7 @@ jobs:
           for t in darwin/arm64 linux/amd64 linux/arm64 windows/amd64; do
             os=${t%/*}; arch=${t#*/}; dir=build/$os-$arch; exe=browser-router; flags=
             [ "$os" = windows ] && { exe=$exe.exe; flags=-H=windowsgui; }
-            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v $flags" -o "$dir/$exe" .
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -C router -trimpath -ldflags "-s -w -X main.version=$v $flags" -o "$GITHUB_WORKSPACE/$dir/$exe" .
             cp README.md "$dir/"
             if [ "$os" = darwin ]; then
               scripts/mac-app.sh "$dir/$exe" "$dir/Browser Router.app" "$v"
