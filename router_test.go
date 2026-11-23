@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -191,6 +192,12 @@ func TestURLs(t *testing.T) {
 		{"https://github.com/other/x", "fallback"},
 		{"https://ACME.example:8443/x", "acme"},
 		{"ftp://globex.com/", "fallback"},
+		// Safe Links: the rules see the wrapped link, so acme in a Globex repository's name stays
+		// with Globex, and a link without a rule is not caught by the wrapper's own parameters.
+		{"https://teams.public.onecdn.static.microsoft/evergreen-assets/safelinks/2/atp-safelinks.html?url=https%3A%2F%2Fgithub.com%2FGlobex%2Facme_temp%2Fpull%2F30&locale=de-de&dest=https%3A%2F%2Fteams.microsoft.com%2Fv2%2F&pc=x", "globex"},
+		{"https://statics.teams.cdn.office.net/evergreen-assets/safelinks/1/atp-safelinks.html?url=https%3A%2F%2Fgithub.com%2Facme%2Fx", "acme"},
+		{"https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fwww.globex.com%2Facme&data=05%7C02", "globex"},
+		{"https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fexample.org%2F&data=acme", "fallback"},
 	}
 	for _, c := range cases {
 		if d := decide(cfg, c.url); d.Rule != c.rule {
@@ -226,5 +233,29 @@ func TestActivation(t *testing.T) {
 		if got := activation(c.t); got != c.want {
 			t.Errorf("activation(%+v) = %q, want %q", c.t, got, c.want)
 		}
+	}
+}
+
+func TestUnwrapRedirect(t *testing.T) {
+	gh := "https://github.com/Globex/acme_temp/pull/30"
+	outlook := "https://eur01.safelinks.protection.outlook.com/?url=" + url.QueryEscape(gh) + "&data=x"
+	cases := []struct{ in, want string }{
+		{"https://teams.public.onecdn.static.microsoft/evergreen-assets/safelinks/2/atp-safelinks.html?url=" + url.QueryEscape(gh) + "&locale=de-de", gh},
+		{outlook, gh},
+		// Nested: Teams around Outlook.
+		{"https://teams.public.onecdn.static.microsoft/x/safelinks/2/atp-safelinks.html?url=" + url.QueryEscape(outlook), gh},
+		// A non-web target, other hosts: unchanged.
+		{"https://eur01.safelinks.protection.outlook.com/?url=javascript%3Aalert(1)", "https://eur01.safelinks.protection.outlook.com/?url=javascript%3Aalert(1)"},
+		{"https://evil.example/?url=" + url.QueryEscape(gh), "https://evil.example/?url=" + url.QueryEscape(gh)},
+		{"https://safelinks.protection.outlook.com.evil.example/?url=" + url.QueryEscape(gh), "https://safelinks.protection.outlook.com.evil.example/?url=" + url.QueryEscape(gh)},
+		{gh, gh},
+	}
+	for _, c := range cases {
+		if got := unwrapRedirect(c.in); got != c.want {
+			t.Errorf("%s: got %s, want %s", c.in, got, c.want)
+		}
+	}
+	if got := hostVia(outlook); got != "https://github.com (via https://eur01.safelinks.protection.outlook.com)" {
+		t.Errorf("hostVia: %s", got)
 	}
 }

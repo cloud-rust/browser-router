@@ -113,7 +113,7 @@ func route(logger *log.Logger, client, link string) error {
 		logger.Printf("warning: %s", d.Note)
 	}
 	// Only the host: full links may carry tokens, and the log stays on disk.
-	logger.Printf("%s -> %s %s: %s", d.Rule, d.Target.Browser, d.Target.Profile, hostOf(link))
+	logger.Printf("%s -> %s %s: %s", d.Rule, d.Target.Browser, d.Target.Profile, hostVia(link))
 	if err := launch(d.Target, link); err != nil {
 		if d.Rule == "fallback" {
 			return err
@@ -140,6 +140,9 @@ func test(client, link string) error {
 	}
 	if !found {
 		fmt.Printf("note: no config at %s\n", configPath())
+	}
+	if inner := unwrapRedirect(link); inner != link {
+		fmt.Printf("unwrapped: %s\n", inner)
 	}
 	d := decideFor(cfg, client, link)
 	fmt.Printf("rule: %s\nbrowser: %s\nprofile: %s\n", d.Rule, d.Target.Browser, d.Target.Profile)
@@ -200,4 +203,12 @@ func openLog() *log.Logger {
 		return log.New(os.Stderr, "", log.LstdFlags)
 	}
 	return log.New(f, "", log.LstdFlags)
+}
+
+// hostVia names the host the rules saw and, for a wrapped link, the wrapper it came through.
+func hostVia(link string) string {
+	if inner := unwrapRedirect(link); inner != link {
+		return hostOf(inner) + " (via " + hostOf(link) + ")"
+	}
+	return hostOf(link)
 }
