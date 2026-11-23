@@ -1,1 +1,9 @@
-{ "projekt": "local-infra" }
+{
+  "projekt": "local-infra",
+  "geruest": {
+    "grund": 2
+  },
+  "ordner": {
+    "mac": "macOS-App zum Go-Programm im Root; Umzug in eine Komponente offen (ENT-007.5)"
+  }
+}
