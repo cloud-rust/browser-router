@@ -1,0 +1,8 @@
+#!/bin/sh
+# Before the push (cockpit repo, V-32): cockpit vorpush picks the fast tests, runs them within the time
+# budget and warns about the structure without holding the push. devenv sets core.hooksPath to .githooks.
+if command -v cockpit >/dev/null 2>&1 && cockpit vorpush --help >/dev/null 2>&1; then
+  exec cockpit vorpush --hook
+fi
+echo "vor dem Push: cockpit gibt es hier nicht, es laufen die Tests (task test)" >&2
+exec task test
